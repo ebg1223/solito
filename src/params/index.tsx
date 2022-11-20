@@ -45,6 +45,7 @@ type Config<
   stringify?: (value: ParsedType) => string
   initial: InitialValue
   paramsToClearOnSetState?: (keyof Props)[]
+    routeChangeMethod?: "replace" | "push"
 }
 
 type Params<
@@ -139,6 +140,7 @@ export function createParam<
       initial,
       stringify = (value: ParsedType) => `${value}`,
       paramsToClearOnSetState,
+        routeChangeMethod,
     } = maybeConfig || {}
     const nextRouter = useRouter()
     const nativeRoute = useRoute()
@@ -167,7 +169,7 @@ export function createParam<
     const stableStringify = useStableCallback(stringify)
     const stableParse = useStableCallback(parse)
     const stableParamsToClear = useStable(paramsToClearOnSetState)
-
+    const stableRouteChangeMethod = useStable(routeChangeMethod)
     const initialValue = useRef(initial)
     const hasSetState = useRef(false)
 
@@ -188,10 +190,18 @@ export function createParam<
           }
         }
 
-        const willChangeExistingParam =
-          query[name as string] && newQuery[name as string]
 
-        const action = willChangeExistingParam ? Router.replace : Router.push
+        let action
+        //Override action if routeChangeMethod is provided
+        if (stableRouteChangeMethod.current === 'replace') {
+          action = Router.replace
+        } else if (stableRouteChangeMethod.current === 'push') {
+          action = Router.push
+        } else {
+          const willChangeExistingParam =
+            query[name as string] && newQuery[name as string]
+          action = willChangeExistingParam ? Router.replace : Router.push
+        }
 
         action(
           {
